@@ -1,0 +1,24 @@
+PS E:\Cloned\spotify-react-web-client> git branch
+    main
+* raghu-dev
+# You are currently on the 'raghu-dev' branch.
+
+PS E:\Cloned\spotify-react-web-client> git push -u origin raghu-dev
+remote: Permission to francoborrelli/spotify-react-web-client.git denied to 9394113857.
+fatal: unable to access 'https://github.com/francoborrelli/spotify-react-web-client.git/': The requested URL returned error: 403
+# The push failed because user 9394113857 does not have permission to push to the 'francoborrelli' repository.
+# "done" here means the push attempt was completed, but not successful.
+# "resolved" means the issue was identified: permission denied due to incorrect remote URL or lack of access.
+
+PS E:\Cloned\spotify-react-web-client> git remote set-url origin https://github.com/9394113857/spotify-react-web-client.git
+# The remote URL was updated to point to your own repository (9394113857).
+# This should resolve the permission issue if you have push access to this repository.
+
+PS E:\Cloned\spotify-react-web-client>
+
+PS E:\Cloned\spotify-react-web-client> git remote -v
+origin  https://github.com/9394113857/spotify-react-web-client.git (fetch)
+origin  https://github.com/9394113857/spotify-react-web-client.git (push)
+PS E:\Cloned\spotify-react-web-client> 
+
+
