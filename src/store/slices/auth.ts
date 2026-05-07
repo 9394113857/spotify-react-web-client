@@ -140,4 +140,4 @@ export const authActions = {
   fetchUser,
 };
 
-export default authSlice.reducer;
+export default authSlice.reducer;  
