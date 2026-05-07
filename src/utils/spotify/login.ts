@@ -5,10 +5,18 @@ import {
   setLocalStorageWithExpiry,
 } from '../localstorage';
 
-const client_id = process.env.REACT_APP_SPOTIFY_CLIENT_ID as string;
-const redirect_uri = process.env.REACT_APP_SPOTIFY_REDIRECT_URL as string;
+/* =========================
+   CONFIG
+========================= */
+const client_id =
+  process.env.REACT_APP_SPOTIFY_CLIENT_ID as string;
 
-const authUrl = new URL('https://accounts.spotify.com/authorize');
+const redirect_uri =
+  process.env.REACT_APP_SPOTIFY_REDIRECT_URL as string;
+
+const authUrl = new URL(
+  'https://accounts.spotify.com/authorize'
+);
 
 /* =========================
    SCOPES
@@ -26,20 +34,24 @@ const SCOPES = [
 ========================= */
 const sha256 = async (plain: string) => {
   if (!window.crypto?.subtle) {
-    throw new Error('Crypto not available. Use HTTPS or localhost.');
+    throw new Error(
+      'Crypto API not available. Use HTTPS or localhost.'
+    );
   }
 
   const encoder = new TextEncoder();
-  return window.crypto.subtle.digest('SHA-256', encoder.encode(plain));
+  const data = encoder.encode(plain);
+
+  return window.crypto.subtle.digest('SHA-256', data);
 };
 
 /* =========================
-   BASE64
+   BASE64 ENCODE
 ========================= */
 const base64encode = (input: ArrayBuffer) => {
   const bytes = new Uint8Array(input);
-  let binary = '';
 
+  let binary = '';
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
@@ -57,7 +69,9 @@ const generateRandomString = (length: number) => {
   const chars =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
-  const values = crypto.getRandomValues(new Uint8Array(length));
+  const values = crypto.getRandomValues(
+    new Uint8Array(length)
+  );
 
   return values.reduce(
     (acc, x) => acc + chars[x % chars.length],
@@ -66,7 +80,7 @@ const generateRandomString = (length: number) => {
 };
 
 /* =========================
-   LOGIN
+   LOGIN (NO LOOP SAFE)
 ========================= */
 const logInWithSpotify = () => {
   const verifier =
@@ -75,9 +89,7 @@ const logInWithSpotify = () => {
 
   localStorage.setItem('code_verifier', verifier);
 
-  const challengePromise = sha256(verifier);
-
-  challengePromise.then((hashed) => {
+  sha256(verifier).then((hashed) => {
     const challenge = base64encode(hashed);
 
     authUrl.search = new URLSearchParams({
@@ -97,7 +109,8 @@ const logInWithSpotify = () => {
    TOKEN EXCHANGE
 ========================= */
 const requestToken = async (code: string) => {
-  const verifier = localStorage.getItem('code_verifier') || '';
+  const verifier =
+    localStorage.getItem('code_verifier') || '';
 
   const body = new URLSearchParams({
     client_id,
@@ -133,20 +146,29 @@ const requestToken = async (code: string) => {
 };
 
 /* =========================
-   GET TOKEN (🔥 LOOP FIX)
+   GET TOKEN (🔥 LOOP FIXED)
 ========================= */
 const getToken = async () => {
-  const stored = getFromLocalStorageWithExpiry('access_token');
+  const stored =
+    getFromLocalStorageWithExpiry('access_token');
+
   if (stored) return [stored, true];
 
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(
+    window.location.search
+  );
   const code = params.get('code');
 
-  // 🔥 IMPORTANT LOOP STOP
-  const used = sessionStorage.getItem('spotify_code_used');
+  // 🔥 IMPORTANT: STOP REPEATED CALLBACK EXECUTION
+  const used = sessionStorage.getItem(
+    'spotify_code_used'
+  );
 
   if (code && !used) {
-    sessionStorage.setItem('spotify_code_used', 'true');
+    sessionStorage.setItem(
+      'spotify_code_used',
+      'true'
+    );
 
     const token = await requestToken(code);
 
@@ -163,11 +185,10 @@ const getToken = async () => {
    REFRESH TOKEN
 ========================= */
 export const getRefreshToken = async () => {
-  const refreshToken = localStorage.getItem('refresh_token');
+  const refreshToken =
+    localStorage.getItem('refresh_token');
 
-  if (!refreshToken) {
-    return null;
-  }
+  if (!refreshToken) return null;
 
   const res = await fetch(
     'https://accounts.spotify.com/api/token',
