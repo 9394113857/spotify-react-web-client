@@ -1,63 +1,45 @@
-import Axios from 'axios';
 import axios from 'axios';
+import Axios from 'axios';
 import {
   getFromLocalStorageWithExpiry,
   setLocalStorageWithExpiry,
 } from '../localstorage';
 
-/* ================================
-   🎯 CONFIG
-================================ */
 const client_id = process.env.REACT_APP_SPOTIFY_CLIENT_ID as string;
 const redirect_uri = process.env.REACT_APP_SPOTIFY_REDIRECT_URL as string;
 
 const authUrl = new URL('https://accounts.spotify.com/authorize');
 
-/* ================================
-   🔑 SCOPES
-================================ */
+/* =========================
+   SCOPES
+========================= */
 const SCOPES = [
-  'ugc-image-upload',
-  'streaming',
+  'user-read-recently-played',
+  'user-top-read',
   'user-read-playback-state',
-  'user-modify-playback-state',
   'user-read-currently-playing',
   'playlist-read-private',
-  'playlist-modify-public',
-  'playlist-modify-private',
-  'playlist-read-collaborative',
-  'user-follow-modify',
-  'user-follow-read',
-  'user-read-playback-position',
-  'user-top-read',
-  'user-read-recently-played',
-  'user-library-read',
-  'user-library-modify',
-] as const;
+];
 
-/* ================================
-   🔐 SHA256 FIX (SAFE)
-================================ */
+/* =========================
+   SAFE SHA256
+========================= */
 const sha256 = async (plain: string) => {
   if (!window.crypto?.subtle) {
-    throw new Error(
-      'Crypto API not available. Use HTTPS or modern browser.'
-    );
+    throw new Error('Crypto not available. Use HTTPS or localhost.');
   }
 
   const encoder = new TextEncoder();
-  const data = encoder.encode(plain);
-
-  return window.crypto.subtle.digest('SHA-256', data);
+  return window.crypto.subtle.digest('SHA-256', encoder.encode(plain));
 };
 
-/* ================================
-   🔁 BASE64 FIX
-================================ */
+/* =========================
+   BASE64
+========================= */
 const base64encode = (input: ArrayBuffer) => {
   const bytes = new Uint8Array(input);
-
   let binary = '';
+
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
@@ -68,165 +50,122 @@ const base64encode = (input: ArrayBuffer) => {
     .replace(/\//g, '_');
 };
 
-/* ================================
-   🔄 RANDOM STRING
-================================ */
+/* =========================
+   RANDOM STRING
+========================= */
 const generateRandomString = (length: number) => {
-  const possible =
+  const chars =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
   const values = crypto.getRandomValues(new Uint8Array(length));
 
   return values.reduce(
-    (acc, x) => acc + possible[x % possible.length],
+    (acc, x) => acc + chars[x % chars.length],
     ''
   );
 };
 
-/* ================================
-   🚀 LOGIN
-================================ */
-const logInWithSpotify = async (anonymous?: boolean) => {
-  let codeVerifier = localStorage.getItem('code_verifier');
+/* =========================
+   LOGIN
+========================= */
+const logInWithSpotify = () => {
+  const verifier =
+    localStorage.getItem('code_verifier') ||
+    generateRandomString(64);
 
-  if (!codeVerifier) {
-    codeVerifier = generateRandomString(64);
-    localStorage.setItem('code_verifier', codeVerifier);
-  }
+  localStorage.setItem('code_verifier', verifier);
 
-  const hashed = await sha256(codeVerifier);
-  const codeChallenge = base64encode(hashed);
+  const challengePromise = sha256(verifier);
 
-  authUrl.search = new URLSearchParams(
-    anonymous
-      ? {
-          client_id,
-          redirect_uri,
-          response_type: 'code', // 'token' replaced with 'code' for PKCE flow
-          scope: '',
-        }
-      : {
-          client_id,
-          redirect_uri,
-          response_type: 'code',
-          scope: SCOPES.join(' '),
-          code_challenge_method: 'S256',
-          code_challenge,
-        }
-  ).toString();
+  challengePromise.then((hashed) => {
+    const challenge = base64encode(hashed);
 
-  window.location.href = authUrl.toString();
+    authUrl.search = new URLSearchParams({
+      client_id,
+      response_type: 'code',
+      redirect_uri,
+      scope: SCOPES.join(' '),
+      code_challenge_method: 'S256',
+      code_challenge: challenge,
+    }).toString();
+
+    window.location.href = authUrl.toString();
+  });
 };
 
-/* ================================
-   🔥 TOKEN EXCHANGE (FIXED - IMPORTANT)
-================================ */
+/* =========================
+   TOKEN EXCHANGE
+========================= */
 const requestToken = async (code: string) => {
-  const code_verifier = localStorage.getItem('code_verifier');
+  const verifier = localStorage.getItem('code_verifier') || '';
 
   const body = new URLSearchParams({
-    code,
     client_id,
-    redirect_uri,
-    code_verifier: code_verifier || '',
     grant_type: 'authorization_code',
+    code,
+    redirect_uri,
+    code_verifier: verifier,
   });
 
-  try {
-    const { data } = await Axios.post(
-      'https://accounts.spotify.com/api/token',
-      body,
-      {
-        headers: {
-          'Content-Type':
-            'application/x-www-form-urlencoded',
-        },
-      }
+  const { data } = await Axios.post(
+    'https://accounts.spotify.com/api/token',
+    body
+  );
+
+  if (data.access_token) {
+    setLocalStorageWithExpiry(
+      'access_token',
+      data.access_token,
+      data.expires_in * 3600
     );
 
-    if (data.access_token) {
-      setLocalStorageWithExpiry(
-        'access_token',
-        data.access_token,
-        data.expires_in * 60 * 60
-      );
+    axios.defaults.headers.common[
+      'Authorization'
+    ] = `Bearer ${data.access_token}`;
 
-      axios.defaults.headers.common[
-        'Authorization'
-      ] = `Bearer ${data.access_token}`;
-
-      localStorage.setItem(
-        'refresh_token',
-        data.refresh_token
-      );
-    }
-
-    return data.access_token;
-  } catch (err) {
-    console.error('❌ Token exchange failed:', err);
-    return null;
+    localStorage.setItem(
+      'refresh_token',
+      data.refresh_token
+    );
   }
+
+  return data.access_token;
 };
 
-/* ================================
-   🔍 GET TOKEN (FIXED CALLBACK FLOW)
-================================ */
+/* =========================
+   GET TOKEN (🔥 LOOP FIX)
+========================= */
 const getToken = async () => {
-  const stored = getFromLocalStorageWithExpiry(
-    'access_token'
-  );
-
+  const stored = getFromLocalStorageWithExpiry('access_token');
   if (stored) return [stored, true];
 
-  const urlParams = new URLSearchParams(
-    window.location.search
-  );
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
 
-  const code = urlParams.get('code');
+  // 🔥 IMPORTANT LOOP STOP
+  const used = sessionStorage.getItem('spotify_code_used');
 
-  // ✅ CALLBACK FIX (MAIN ISSUE YOU HAD)
-  if (code) {
+  if (code && !used) {
+    sessionStorage.setItem('spotify_code_used', 'true');
+
     const token = await requestToken(code);
 
-    // IMPORTANT: remove ?code=xxx from URL
+    // clean URL once
     window.history.replaceState({}, '', '/');
 
     return [token, true];
   }
 
-  const publicToken = getFromLocalStorageWithExpiry(
-    'public_access_token'
-  );
-
-  if (publicToken) return [publicToken, false];
-
-  const hashToken = window.location.hash
-    .split('&')[0]
-    ?.split('=')[1];
-
-  if (hashToken) {
-    setLocalStorageWithExpiry(
-      'public_access_token',
-      hashToken,
-      3600
-    );
-
-    window.location.hash = '';
-    return [hashToken, false];
-  }
-
   return [null, false];
 };
 
-/* ================================
-   🔄 REFRESH TOKEN (FIXED)
-================================ */
+/* =========================
+   REFRESH TOKEN
+========================= */
 export const getRefreshToken = async () => {
-  const refreshToken =
-    localStorage.getItem('refresh_token');
+  const refreshToken = localStorage.getItem('refresh_token');
 
   if (!refreshToken) {
-    logInWithSpotify(true);
     return null;
   }
 
@@ -248,27 +187,20 @@ export const getRefreshToken = async () => {
 
   const data = await res.json();
 
-  if (!data.access_token) {
-    logInWithSpotify(true);
-    return null;
+  if (data.access_token) {
+    setLocalStorageWithExpiry(
+      'access_token',
+      data.access_token,
+      data.expires_in * 3600
+    );
   }
-
-  setLocalStorageWithExpiry(
-    'access_token',
-    data.access_token,
-    data.expires_in * 60 * 60
-  );
-
-  axios.defaults.headers.common[
-    'Authorization'
-  ] = `Bearer ${data.access_token}`;
 
   return data.access_token;
 };
 
-/* ================================
-   📦 EXPORT
-================================ */
+/* =========================
+   EXPORT
+========================= */
 export default {
   logInWithSpotify,
   getToken,
