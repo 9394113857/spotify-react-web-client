@@ -1,0 +1,90 @@
+If you cloned a React project from GitHub, usually the setup flow is:
+1. Open terminal in the project folder
+cd your-project-folder
+Example:
+cd my-react-app
+________________________________________
+2. Check package manager files first
+Run:
+ls
+Look for one of these:
+•	package.json ✅ (important) 
+•	package-lock.json → use npm 
+•	yarn.lock → use yarn 
+•	pnpm-lock.yaml → use pnpm 
+Most projects use npm.
+________________________________________
+3. Install dependencies
+If using npm
+npm install
+OR shorter:
+npm i
+This installs everything from package.json.
+________________________________________
+4. Run the React app
+Usually:
+npm start
+OR sometimes:
+npm run dev
+OR:
+npm run serve
+________________________________________
+Most common full flow
+cd project-folder
+npm install
+npm start
+________________________________________
+If npm start fails
+Check available scripts:
+npm run
+You’ll see something like:
+start
+dev
+build
+test
+Then run the correct one:
+npm run dev
+or
+npm start
+________________________________________
+If Node.js is not installed
+Check:
+node -v
+npm -v
+If command not found, install Node.js first:
+Node.js Official Website
+Download LTS version.
+________________________________________
+Example complete beginner flow
+git clone <repo-url>
+cd repo-name
+npm install
+npm start
+Then open browser:
+http://localhost:3000
+or Vite apps:
+http://localhost:5173
+________________________________________
+Extra useful commands
+Stop server
+Press:
+CTRL + C
+________________________________________
+Reinstall everything if errors happen
+Delete old modules:
+Windows
+rmdir /s /q node_modules
+del package-lock.json
+npm install
+Linux/Mac
+rm -rf node_modules package-lock.json
+npm install
+________________________________________
+Build production version
+npm run build
+________________________________________
+If you want, paste:
+•	your project folder files (ls) 
+•	or package.json 
+and I’ll tell you the EXACT commands for that specific React project.
+
