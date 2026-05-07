@@ -88,3 +88,83 @@ If you want, paste:
 •	or package.json 
 and I’ll tell you the EXACT commands for that specific React project.
 
+=============================================
+
+1. Install dependencies
+yarn install
+If yarn is not installed, install it first:
+npm install -g yarn
+Then again:
+yarn install
+________________________________________
+2. Check scripts available
+Run:
+yarn run
+Look for scripts like:
+•	start 
+•	dev 
+•	serve 
+________________________________________
+3. Most likely run command
+Usually for React:
+yarn start
+If that fails, try:
+yarn dev
+OR:
+yarn run dev
+________________________________________
+4. Open browser
+Usually:
+•	http://localhost:3000 
+•	OR http://localhost:5173 
+________________________________________
+IMPORTANT — This project has .env.dist
+That means environment variables may be required.
+Before running, copy .env.dist to .env
+In PowerShell:
+copy .env.dist .env
+OR:
+cp .env.dist .env
+Then run the app.
+________________________________________
+Recommended exact order for YOU
+copy .env.dist .env
+yarn install
+yarn start
+________________________________________
+If errors happen
+Paste:
+•	output of yarn run 
+•	or full error message 
+and I’ll fix it step-by-step.
+
+===================================================
+
+No problem — Yarn is not installed yet.
+Run this first in PowerShell:
+npm install -g yarn
+After installation finishes, verify:
+yarn -v
+Then continue:
+yarn install
+After install completes:
+yarn start
+________________________________________
+If npm itself is missing
+Check:
+node -v
+npm -v
+If those fail, install Node.js first:
+Node.js Official Website
+Install the LTS version, then reopen PowerShell and retry the commands.
+________________________________________
+Full command order for you
+npm install -g yarn # Working
+yarn -v # Working
+yarn install # Working so here insatlling packages okay ✅🖐
+yarn start # 
+
+
+
+
+
