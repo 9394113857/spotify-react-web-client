@@ -1,84 +1,76 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-
-// Utils
 import axios from '../../axios';
 import login from '../../utils/spotify/login';
-
-// Services
-import { authService } from '../../services/auth';
-
-// Interfaces
-import type { User } from '../../interfaces/user';
 import { getFromLocalStorageWithExpiry } from '../../utils/localstorage';
+import { authService } from '../../services/auth';
 
 /* =========================
    STATE
 ========================= */
-const initialState: {
+type AuthState = {
   token?: string;
   playerLoaded: boolean;
-  user?: User;
+  user?: any;
   requesting: boolean;
-} = {
+};
+
+const initialState: AuthState = {
+  token: undefined,
+  playerLoaded: false,
   user: undefined,
   requesting: true,
-  playerLoaded: false,
-  token: getFromLocalStorageWithExpiry('access_token') || undefined,
 };
 
 /* =========================
-   LOGIN THUNK (FIXED)
+   LOGIN THUNK (FINAL FIX)
 ========================= */
 export const loginToSpotify = createAsyncThunk<
   { token?: string; loaded: boolean },
   boolean | undefined
->('auth/loginToSpotify', async (_, api) => {
+>('auth/loginToSpotify', async (anonymous, api) => {
   const userToken =
-    getFromLocalStorageWithExpiry('access_token') as string;
+    getFromLocalStorageWithExpiry('access_token') as string | null;
 
-  const anonymousToken =
-    getFromLocalStorageWithExpiry('public_access_token');
+  const publicToken =
+    getFromLocalStorageWithExpiry('public_access_token') as string | null;
 
-  let token = userToken || anonymousToken;
+  const token = userToken || publicToken || undefined;
 
-  // ✅ Already logged in
+  /* -------------------------
+     CASE 1: TOKEN EXISTS
+  ------------------------- */
   if (token) {
-    axios.defaults.headers.common[
-      'Authorization'
-    ] = 'Bearer ' + token;
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-    if (userToken) api.dispatch(fetchUser());
-
-    return { token, loaded: false };
-  }
-
-  let [requestedToken, requestUser] =
-    await login.getToken();
-
-  if (requestUser) {
     api.dispatch(fetchUser());
+
+    return { token, loaded: true };
   }
 
-  // 🚨 FIX: NO ARGUMENTS (prevents TS2554 error)
+  /* -------------------------
+     CASE 2: LOGIN FLOW
+  ------------------------- */
+  const [requestedToken] = await login.getToken();
+
   if (!requestedToken) {
-    login.logInWithSpotify();
-  } else {
-    axios.defaults.headers.common[
-      'Authorization'
-    ] = 'Bearer ' + requestedToken;
+    login.logInWithSpotify(anonymous);
+    return { token: undefined, loaded: false };
   }
+
+  axios.defaults.headers.common['Authorization'] =
+    `Bearer ${requestedToken}`;
 
   return { token: requestedToken, loaded: true };
 });
 
 /* =========================
-   USER FETCH
+   FETCH USER
 ========================= */
 export const fetchUser = createAsyncThunk(
   'auth/fetchUser',
   async () => {
-    const response = await authService.fetchUser();
-    return response.data;
+    const res = await authService.fetchUser();
+    return res.data;
   }
 );
 
@@ -89,45 +81,26 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setRequesting(
-      state,
-      action: PayloadAction<{ requesting: boolean }>
-    ) {
-      state.requesting = action.payload.requesting;
-    },
-
-    setToken(
-      state,
-      action: PayloadAction<{ token?: string }>
-    ) {
+    setToken(state, action: PayloadAction<{ token?: string }>) {
       state.token = action.payload.token;
     },
-
     setPlayerLoaded(
       state,
       action: PayloadAction<{ playerLoaded: boolean }>
     ) {
-      state.playerLoaded =
-        action.payload.playerLoaded;
+      state.playerLoaded = action.payload.playerLoaded;
     },
   },
-
   extraReducers: (builder) => {
-    builder.addCase(
-      loginToSpotify.fulfilled,
-      (state, action) => {
-        state.token = action.payload.token;
-        state.requesting = !action.payload.loaded;
-      }
-    );
+    builder.addCase(loginToSpotify.fulfilled, (state, action) => {
+      state.token = action.payload.token;
+      state.requesting = false;
+    });
 
-    builder.addCase(
-      fetchUser.fulfilled,
-      (state, action) => {
-        state.user = action.payload;
-        state.requesting = false;
-      }
-    );
+    builder.addCase(fetchUser.fulfilled, (state, action) => {
+      state.user = action.payload;
+      state.requesting = false;
+    });
   },
 });
 
@@ -140,4 +113,4 @@ export const authActions = {
   fetchUser,
 };
 
-export default authSlice.reducer;  
+export default authSlice.reducer;

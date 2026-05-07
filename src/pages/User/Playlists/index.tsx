@@ -2,7 +2,7 @@ import { FC, memo, useEffect } from 'react';
 
 import ProfilePlaylistsPageContainer from './container';
 
-// Redux
+// Redux + Router
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../store/store';
 import { profileActions } from '../../../store/slices/profile';
@@ -15,11 +15,17 @@ export const ProfilePlaylistPage: FC<ProfilePlaylistsPageProps> = memo((props) =
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const params = useParams<{ userId: string }>();
+  const params = useParams<{ userId?: string }>();
   const user = useAppSelector((state) => state.auth.user);
 
   useEffect(() => {
-    if (user!.id !== params.userId) return navigate(`/users/${params.userId}`);
+    if (!user || !params.userId) return;
+
+    if (user.id !== params.userId) {
+      navigate(`/users/${params.userId}`);
+      return;
+    }
+
     dispatch(profileActions.fetchPlaylists(params.userId));
   }, [user, params.userId, dispatch, navigate]);
 

@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
+// @ts-ignore: SCSS module import for side-effect styles
 import './styles/App.scss';
 
 // Utils
